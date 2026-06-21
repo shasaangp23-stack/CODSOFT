@@ -1,0 +1,77 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+
+# -------------------------------------------------------------------------
+# 1. CREATE MOCK DATASET (For immediate execution in VS Code)
+# -------------------------------------------------------------------------
+# In a real scenario, you would load your data using: pd.read_csv('your_file.csv')
+data = {
+    'plot_summary': [
+        "A space crew investigates a mysterious signal on a distant planet and encounters a deadly alien organism.",
+        "A brave superhero fights a villain who is trying to destroy the entire city with a massive bomb.",
+        "Two star-crossed lovers from rival families struggle to keep their relationship alive despite the odds.",
+        "An AI system gains consciousness and tries to take over the world's nuclear launch codes.",
+        "A detective uncovers a web of corruption and secrets while investigating a high-profile murder in New York.",
+        "A young couple falls deeply in love during a summer vacation by the beautiful Mediterranean sea.",
+        "A special forces soldier goes rogue to avenge the murder of his partner by an international syndicate.",
+        "A serial killer leaves cryptic clues for a seasoned FBI profiler in a tense psychological game."
+    ],
+    'genre': [
+        'Sci-Fi', 'Action', 'Romance', 'Sci-Fi', 
+        'Thriller', 'Romance', 'Action', 'Thriller'
+    ]
+}
+
+df = pd.DataFrame(data)
+
+# -------------------------------------------------------------------------
+# 2. DATA SPLITTING
+# -------------------------------------------------------------------------
+# Separate text (X) and labels (y), then split into training and testing sets
+X = df['plot_summary']
+y = df['genre']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+# -------------------------------------------------------------------------
+# 3. TEXT VECTORIZATION (TF-IDF)
+# -------------------------------------------------------------------------
+# Convert raw text into numerical features using Term Frequency-Inverse Document Frequency
+tfidf = TfidfVectorizer(stop_words='english')
+
+X_train_tfidf = tfidf.fit_transform(X_train)
+X_test_tfidf = tfidf.transform(X_test)
+
+# -------------------------------------------------------------------------
+# 4. MODEL TRAINING (Logistic Regression)
+# -------------------------------------------------------------------------
+model = LogisticRegression(random_state=42)
+model.fit(X_train_tfidf, y_train)
+
+# -------------------------------------------------------------------------
+# 5. EVALUATION
+# -------------------------------------------------------------------------
+y_pred = model.predict(X_test_tfidf)
+
+print("=== Model Evaluation ===")
+print(f"Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%\n")
+print("Classification Report:")
+print(classification_report(y_test, y_pred, zero_division=0))
+
+# -------------------------------------------------------------------------
+# 6. TEST WITH CUSTOM PROMPT
+# -------------------------------------------------------------------------
+print("\n=== Custom Prediction ===")
+new_plots = [
+    "A rogue spy steals a stealth jet to stop a cyber terrorist attack.",
+    "A heartwarming story about two childhood friends who reconnect after twenty years."
+]
+
+new_plots_tfidf = tfidf.transform(new_plots)
+predictions = model.predict(new_plots_tfidf)
+
+for plot, genre in zip(new_plots, predictions):
+    print(f"Plot: '{plot}' -> Predicted Genre: **{genre}**")
