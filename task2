@@ -1,0 +1,69 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+# -------------------------------------------------------------------------
+# 1. CREATE MOCK FRAUD DATASET (For immediate execution in VS Code)
+# -------------------------------------------------------------------------
+# Real fraud datasets (like Kaggle's Credit Card Fraud) use PCA features (V1-V28).
+# Here we simulate a balanced mix of normal and highly skewed transaction data.
+np.random.seed(42)
+n_samples = 1000
+
+# Generate 28 mock anonymous numerical features (V1 to V28)
+pca_features = np.random.normal(loc=0.0, scale=1.0, size=(n_samples, 28))
+
+# Generate 'Amount' (highly variable) and 'Time' columns
+amount = np.random.exponential(scale=50.0, size=(n_samples, 1))
+time = np.linspace(0, 1e5, n_samples).reshape(-1, 1)
+
+# Combine into a feature matrix
+X_raw = np.hstack((time, pca_features, amount))
+feature_names = ['Time'] + [f'V{i}' for i in range(1, 29)] + ['Amount']
+
+# Create labels: 0 for Legitimate (95%), 1 for Fraudulent (5%)
+# Make higher transaction amounts slightly more likely to be fraud for realism
+fraud_prob = 1 / (1 + np.exp(-(-5 + 0.02 * amount.flatten() + 0.2 * pca_features[:, 0])))
+y_raw = np.where(fraud_prob > np.percentile(fraud_prob, 95), 1, 0)
+
+df = pd.DataFrame(X_raw, columns=feature_names)
+df['Class'] = y_raw
+
+# -------------------------------------------------------------------------
+# 2. PREPROCESSING & TRAIN-TEST SPLIT
+# -------------------------------------------------------------------------
+# Scale the 'Amount' and 'Time' columns to match normalized scales
+scaler = StandardScaler()
+df['Amount'] = scaler.fit_transform(df[['Amount']])
+df['Time'] = scaler.fit_transform(df[['Time']])
+
+X = df.drop(columns=['Class'])
+y = df['Class']
+
+# Split with stratification to keep the fraud percentage consistent in both sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y
+)
+
+# -------------------------------------------------------------------------
+# 3. TRAIN RANDOM FOREST MODEL
+# -------------------------------------------------------------------------
+# class_weight='balanced' helps mitigate the extreme majority/minority imbalance
+model = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+model.fit(X_train, y_train)
+
+# -------------------------------------------------------------------------
+# 4. EVALUATION
+# -------------------------------------------------------------------------
+y_pred = model.predict(X_test)
+
+print("=== Confusion Matrix ===")
+print(confusion_matrix(y_test, y_pred))
+
+print("\n=== Model Metrics ===")
+print(f"Overall Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%")
+print("\nClassification Report (Focus heavily on 'Precision' and 'Recall' for Class 1):")
+print(classification_report(y_test, y_pred, target_names=['Legitimate (0)', 'Fraudulent (1)']))
